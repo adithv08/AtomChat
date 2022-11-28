@@ -1,21 +1,22 @@
 package dev.atomtables.atomchat;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
-
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.text.Editable;
-import android.view.View;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import java.util.Objects;
 
@@ -25,12 +26,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         Button button = findViewById(R.id.send_button);
         usernameSet("onLaunch");
-        final int[] i = {1};
-        button.setOnClickListener(v -> onSentMessage());
+        button.setOnClickListener(v -> onSendMessage());
     }
-    final int[] i = {32};
+    final int[] i = {1};
 
     public int dpToPx(int dp, Context context) {
 
@@ -44,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
         if (Objects.equals(activity, "onLaunch")) {
             if (Objects.equals(callUsername("", "no"), "notFound")) {
                 final EditText input = new EditText(MainActivity.this);
+
                 float dpi = MainActivity.this.getResources().getDisplayMetrics().density;
                 AlertDialog dialog = (new AlertDialog.Builder(MainActivity.this))
                         .setTitle("Please choose a username")
@@ -60,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
             float dpi = MainActivity.this.getResources().getDisplayMetrics().density;
             AlertDialog dialog = (new AlertDialog.Builder(MainActivity.this))
                     .setTitle("Please choose a username")
-                    .setMessage("You can change this in settings")
+                    .setMessage("Note this will not change your username for any prior texts!")
                     .setPositiveButton("OK", (dialog1, which) -> callUsername(input.getText().toString(), "yes"))
                     .create();
             dialog.setView(input, (int)(19*dpi), (int)(5*dpi), (int)(14*dpi), (int)(5*dpi) );
@@ -69,24 +71,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public String callUsername(String username, String edit) {
+        SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
         if (Objects.equals(edit, "yes")) {
-            SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
             SharedPreferences.Editor editor = sharedPref.edit();
             editor.putString("username", username);
             editor.apply();
             return "";
         } else {
-            SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
             return sharedPref.getString("username", "notFound");
         }
     }
 
-    public void changeUsername() {
-        usernameSet("onCall");
-    }
 
-    public void onSentMessage() {
+    public void onSendMessage() {
         EditText send_message = findViewById(R.id.send_message);
+        send_message.requestFocus();
         String message = send_message.getText().toString();
         send_message.setHint("Message");
         send_message.setHintTextColor(Color.parseColor("#757575"));
@@ -133,6 +132,24 @@ public class MainActivity extends AppCompatActivity {
         } else {
             send_message.setHint("Please type a message");
             send_message.setHintTextColor(Color.parseColor("#eb4034"));
+        }
+    }
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu_main, menu);
+        return true;
+    }
+    @SuppressLint("NonConstantResourceId")
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.user_change:
+                usernameSet("onCall");
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
     }
 }
