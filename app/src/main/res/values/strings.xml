@@ -2,4 +2,12 @@
     <string name="app_name">AtomChat</string>
     <string name="send">Send</string>
     <string name="message">Message</string>
+    <string name="what_is_atomchat">What is AtomChat?</string>
+    <string name="what_is_atomchat_info">AtomChat is a decentralized chatting service that can be hosted in as many places as necessary, as long as the app is online and is connected to a server. Messages are only ever sent through the server, and if a user is not connected or closes the app, all current messages will be deleted and message history will not be saved.</string>
+    <string name="but_why">But why?</string>
+    <string name="why_reason">For some people, they might not find it practical to chat on a messaging platform where anyone can see anything. This app was created to reduce the digital footprint of anyone who wishes to be able to talk to their friends without the liabilities of most social media platforms observable today.</string>
+    <string name="troubleshooting">Troubleshooting</string>
+    <string name="troubleshooting_reason">This app is in alpha, and will most likely stay that way for most of the time. Just ask the developer, atomtables, for help with this program.</string>
+    <string name="change_username">Change Username</string>
+    <string name="help">Help</string>
 </resources>
