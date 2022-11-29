@@ -5,7 +5,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
-
     <EditText
         android:id="@+id/send_message"
         android:layout_width="0dp"
@@ -17,6 +16,7 @@
         android:inputType="textPersonName"
         android:textColorHint="#9E9E9E"
         android:layout_gravity="center"
+        android:imeOptions="actionSend"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@+id/send_button"
         app:layout_constraintStart_toStartOf="parent" />
@@ -33,16 +33,31 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/send_message" />
 
-    <LinearLayout
-        android:id="@+id/parentLayout"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toTopOf="@+id/send_message"
+
+    <ScrollView
+        android:id="@+id/scr1"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginEnd="1dp"
+        android:layout_marginBottom="48dp"
+        android:contentDescription="@string/message"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.33"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        android:isScrollContainer="true">
 
-    </LinearLayout>
+        <LinearLayout
+            android:id="@+id/parentLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toTopOf="@+id/send_message"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            android:isScrollContainer="true"/>
 
+    </ScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>

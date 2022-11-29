@@ -25,6 +25,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".HelpActivity"
+            android:exported="true"
+            android:configChanges="screenSize">
+
+        </activity>
+
     </application>
 
 </manifest>
