@@ -7,7 +7,8 @@
     <string name="but_why">But why?</string>
     <string name="why_reason">For some people, they might not find it practical to chat on a messaging platform where anyone can see anything. This app was created to reduce the digital footprint of anyone who wishes to be able to talk to their friends without the liabilities of most social media platforms observable today.</string>
     <string name="troubleshooting">Troubleshooting</string>
-    <string name="troubleshooting_reason">This app is in alpha, and will most likely stay that way for most of the time. Just ask the developer, atomtables, for help with this program.</string>
+    <string name="troubleshooting_reason">This app is in alpha, and will most likely stay that way for most of the time. Just ask the developer, atomtables, for help with this program. If you somehow got the APK file for this app, it is not on the play store, and will never be. Only install this app if you either know what you are doing, or if you learnt what is being done. Do not download this app from any other source but from atomtables, as other versions of this app may be considered viruses and should be treated as such.</string>
     <string name="change_username">Change Username</string>
     <string name="help">Help</string>
+    <string name="thank_you_for_being_an_alpha_tester">Thank you for being an alpha tester!</string>
 </resources>

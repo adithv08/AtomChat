@@ -7,10 +7,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -21,21 +23,85 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
+import java.net.URI;
+import java.util.Arrays;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import io.socket.client.IO;
+import io.socket.client.Socket;
+import io.socket.engineio.client.transports.Polling;
+import io.socket.engineio.client.transports.WebSocket;
 
 public class MainActivity extends AppCompatActivity {
+    IO.Options options = IO.Options.builder()
+            // IO factory options
+            .setForceNew(false)
+            .setMultiplex(true)
 
+            // low-level engine options
+            .setTransports(new String[] { Polling.NAME, WebSocket.NAME })
+            .setUpgrade(true)
+            .setRememberUpgrade(false)
+            .setPath("/socket.io/")
+            .setQuery(null)
+            .setExtraHeaders(null)
+
+            // Manager options
+            .setReconnection(true)
+            .setReconnectionAttempts(Integer.MAX_VALUE)
+            .setReconnectionDelay(1_000)
+            .setReconnectionDelayMax(5_000)
+            .setRandomizationFactor(0.5)
+            .setTimeout(20_000)
+            .setAuth(null)
+            .build();
+    Socket socket = IO.socket(URI.create("http://192.168.1.14:3000/"), options);
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        ScrollView sv = findViewById(R.id.scr1);
-        sv.post(() -> sv.fullScroll(View.FOCUS_DOWN));
+        AtomicInteger ki = new AtomicInteger();
+        ki.set(0);
+        socket.connect();
+        System.out.println("status connected is " + socket.connected());
+        EditText send_message = findViewById(R.id.send_message);
+        send_message.setOnEditorActionListener((v, actionId, event) -> {
+            if (ki.get() == 0) {
+                if ((event != null && (event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) || (actionId == EditorInfo.IME_ACTION_DONE)) {
+                    if (socket.connected()){
+                        onSendMessage();
+                    } else {
+                        onConnectionIssue();
+                    }
 
+                    ki.getAndIncrement();
+                    setTimeout(ki::getAndDecrement, 250);
+                    return true;
+                }
+            } else {
+                return true;
+            }
+            return false;
+        });
         Button button = findViewById(R.id.send_button);
         usernameSet("onLaunch");
-        button.setOnClickListener(v -> onSendMessage());
+        button.setOnClickListener((v) -> {
+            if (socket.connected()){
+                onSendMessage();
+            } else {
+                onConnectionIssue();
+            }
+        });
         onReceiveMessage("received :/");
+        setTimeout(() -> System.out.println("status connected is " + socket.connected()), 5000);
+        socket.on(Socket.EVENT_CONNECT_ERROR, args -> {
+            System.out.println(Arrays.toString(args));
+            socket.connect();
+        });
+        socket.on("new_message", args -> runOnUiThread(() -> onReceiveMessage((String) args[0])));
+
+
     }
     final int[] i = {1};
 
@@ -88,11 +154,11 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
-    public void onSendMessage() {
+  public void onSendMessage() {
+        System.out.println("current status : " + socket.connected());
         EditText send_message = findViewById(R.id.send_message);
-        send_message.requestFocus();
         String message = send_message.getText().toString();
+        send_message.requestFocus();
         send_message.setHint("Message");
         send_message.setHintTextColor(Color.parseColor("#757575"));
         if (!message.equals("")) {
@@ -134,11 +200,14 @@ public class MainActivity extends AppCompatActivity {
             relativeLayout.addView(message_new);
             relativeLayout.addView(username);
             parentLayout.addView(relativeLayout);
-
+            socket.emit("send_message", message);
+            ScrollView sv = findViewById(R.id.scr1);
+            sv.post(() -> sv.fullScroll(View.FOCUS_DOWN));
         } else {
             send_message.setHint("Please type a message");
             send_message.setHintTextColor(Color.parseColor("#eb4034"));
         }
+
     }
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -164,41 +233,56 @@ public class MainActivity extends AppCompatActivity {
     public void onReceiveMessage(String message) {
 
         RelativeLayout relativeLayout = new RelativeLayout(MainActivity.this);
-           LinearLayout parentLayout = findViewById(R.id.parentLayout);
-           RelativeLayout.LayoutParams rlp = new RelativeLayout.LayoutParams(
-                    RelativeLayout.LayoutParams.MATCH_PARENT,
-                    RelativeLayout.LayoutParams.WRAP_CONTENT
-            );
-            TextView message_new = new TextView(MainActivity.this);
-            message_new.setText(message);
-            message_new.setBackground(ContextCompat.getDrawable(MainActivity.this, R.drawable.received_message_shape));
-            message_new.setTextColor(Color.parseColor("#000000"));
-            message_new.setTextSize(16);
-
-            RelativeLayout.LayoutParams tlp = new RelativeLayout.LayoutParams(
-                    RelativeLayout.LayoutParams.WRAP_CONTENT,
-                    RelativeLayout.LayoutParams.WRAP_CONTENT
-            );
-            TextView username = new TextView(MainActivity.this);
-            username.setText(callUsername("", "no"));
-            username.setTextColor(Color.parseColor("#f3f3f3"));
-            username.setTextSize(12);
-            message_new.setId(i[0]);
-
-            RelativeLayout.LayoutParams ulp = new RelativeLayout.LayoutParams(
-                    RelativeLayout.LayoutParams.WRAP_CONTENT,
-                    RelativeLayout.LayoutParams.WRAP_CONTENT
-            );
-            ulp.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.TRUE);
-            tlp.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.TRUE);
-            ulp.addRule(RelativeLayout.BELOW, i[0]);
-            i[0]++;
-            rlp.setMargins(10, 10, 5, 0);
-            relativeLayout.setLayoutParams(rlp);
-            message_new.setLayoutParams(tlp);
-            username.setLayoutParams(ulp);
-            relativeLayout.addView(message_new);
-            relativeLayout.addView(username);
-            parentLayout.addView(relativeLayout);
+        LinearLayout parentLayout = findViewById(R.id.parentLayout);
+        RelativeLayout.LayoutParams rlp = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+        );
+        TextView message_new = new TextView(MainActivity.this);
+        message_new.setText(message);
+        message_new.setBackground(ContextCompat.getDrawable(MainActivity.this, R.drawable.received_message_shape));
+        message_new.setTextColor(Color.parseColor("#000000"));
+        message_new.setTextSize(16);
+        relativeLayout.setPadding(dpToPx(4, MainActivity.this), dpToPx(4, MainActivity.this), 0, 0);
+        RelativeLayout.LayoutParams tlp = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+        );
+        TextView username = new TextView(MainActivity.this);
+        username.setText(callUsername("", "no"));
+        username.setTextColor(Color.parseColor("#f3f3f3"));
+        username.setTextSize(12);
+        message_new.setId(i[0]);
+        RelativeLayout.LayoutParams ulp = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+        );
+        ulp.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.TRUE);
+        tlp.addRule(RelativeLayout.ALIGN_PARENT_LEFT, RelativeLayout.TRUE);
+        ulp.addRule(RelativeLayout.BELOW, i[0]);
+        i[0]++;
+        rlp.setMargins(10, 10, 5, 0);
+        relativeLayout.setLayoutParams(rlp);
+        message_new.setLayoutParams(tlp);
+        username.setLayoutParams(ulp);
+        relativeLayout.addView(message_new);
+        relativeLayout.addView(username);
+        parentLayout.addView(relativeLayout);
+    }
+    public static void setTimeout(Runnable runnable, int delay){
+        new Thread(() -> {
+            try {
+                Thread.sleep(delay);
+                runnable.run();
+            }
+            catch (Exception e){
+                e.printStackTrace();
+            }
+        }).start();
+    }
+    public void onConnectionIssue() {
+        EditText send_message = findViewById(R.id.send_message);
+        send_message.setHint("Connection Issue");
+        send_message.setHintTextColor(Color.parseColor("#eb4034"));
     }
 }
