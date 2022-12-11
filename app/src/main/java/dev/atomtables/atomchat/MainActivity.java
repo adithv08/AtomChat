@@ -26,12 +26,16 @@ import androidx.core.content.ContextCompat;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.engineio.client.transports.Polling;
 import io.socket.engineio.client.transports.WebSocket;
+
+
 
 public class MainActivity extends AppCompatActivity {
     IO.Options options = IO.Options.builder()
@@ -56,9 +60,19 @@ public class MainActivity extends AppCompatActivity {
             .setTimeout(20_000)
             .setAuth(null)
             .build();
-    Socket socket = IO.socket(URI.create("http://192.168.1.14:3000/"), options);
+    URI ipAddress = URI.create("http://127.0.0.1");
+    Socket socket = IO.socket(ipAddress, options);
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
+        if (!sharedPref.getString("ipAddress", "absolutely0value").equals("absolutely0value")) {
+            ipAddress = URI.create(sharedPref.getString("ipAddress", ""));
+            socket = IO.socket(ipAddress, options);
+        } else {
+            onIpAddress();
+        }
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         AtomicInteger ki = new AtomicInteger();
@@ -93,13 +107,30 @@ public class MainActivity extends AppCompatActivity {
                 onConnectionIssue();
             }
         });
-        onReceiveMessage("received :/");
-        setTimeout(() -> System.out.println("status connected is " + socket.connected()), 5000);
         socket.on(Socket.EVENT_CONNECT_ERROR, args -> {
             System.out.println(Arrays.toString(args));
             socket.connect();
         });
-        socket.on("new_message", args -> runOnUiThread(() -> onReceiveMessage((String) args[0])));
+    socket.on("new_message", (arg) -> runOnUiThread(() -> {
+                  String arg2 = arg[0].toString();
+                  String[] arg3 = arg2.split("%&##\uE096%%@");
+                  onReceiveMessage(arg3[0], arg3[1]);
+                }));
+
+        new Timer().scheduleAtFixedRate(new TimerTask(){
+            @Override
+            public void run(){
+                socket.connect();
+                if (socket.connected()) {
+                    runOnUiThread(() -> {
+                        EditText send_message = findViewById(R.id.send_message);
+                        send_message.setHint("Message");
+                        send_message.setHintTextColor(Color.parseColor("#757575"));
+                        System.out.println("status connected is " + socket.connected());
+                    });
+                }
+            }
+        },0,5000);
 
 
     }
@@ -155,7 +186,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
   public void onSendMessage() {
-        System.out.println("current status : " + socket.connected());
+      System.out.println("current status : " + socket.connected());
         EditText send_message = findViewById(R.id.send_message);
         String message = send_message.getText().toString();
         send_message.requestFocus();
@@ -200,7 +231,7 @@ public class MainActivity extends AppCompatActivity {
             relativeLayout.addView(message_new);
             relativeLayout.addView(username);
             parentLayout.addView(relativeLayout);
-            socket.emit("send_message", message);
+            socket.emit("send_message", message, callUsername("", "no"));
             ScrollView sv = findViewById(R.id.scr1);
             sv.post(() -> sv.fullScroll(View.FOCUS_DOWN));
         } else {
@@ -230,7 +261,7 @@ public class MainActivity extends AppCompatActivity {
                 return super.onOptionsItemSelected(item);
         }
     }
-    public void onReceiveMessage(String message) {
+    public void onReceiveMessage(String message, String user) {
 
         RelativeLayout relativeLayout = new RelativeLayout(MainActivity.this);
         LinearLayout parentLayout = findViewById(R.id.parentLayout);
@@ -249,7 +280,7 @@ public class MainActivity extends AppCompatActivity {
                 RelativeLayout.LayoutParams.WRAP_CONTENT
         );
         TextView username = new TextView(MainActivity.this);
-        username.setText(callUsername("", "no"));
+        username.setText(user);
         username.setTextColor(Color.parseColor("#f3f3f3"));
         username.setTextSize(12);
         message_new.setId(i[0]);
@@ -268,6 +299,8 @@ public class MainActivity extends AppCompatActivity {
         relativeLayout.addView(message_new);
         relativeLayout.addView(username);
         parentLayout.addView(relativeLayout);
+        ScrollView sv = findViewById(R.id.scr1);
+        sv.post(() -> sv.fullScroll(View.FOCUS_DOWN));
     }
     public static void setTimeout(Runnable runnable, int delay){
         new Thread(() -> {
@@ -284,5 +317,26 @@ public class MainActivity extends AppCompatActivity {
         EditText send_message = findViewById(R.id.send_message);
         send_message.setHint("Connection Issue");
         send_message.setHintTextColor(Color.parseColor("#eb4034"));
+        send_message.setText("");
+
     }
+    public void onIpAddress() {
+        SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
+        final EditText input = new EditText(MainActivity.this);
+        float dpi = MainActivity.this.getResources().getDisplayMetrics().density;
+        AlertDialog dialog = (new AlertDialog.Builder(MainActivity.this))
+            .setTitle("What server would you like to connect to?")
+            .setMessage("You can change this in settings, you must select an ip address as this app is nonfunctional without it. If you are not a developer, I recommend you do not use the app at this stage. make sure to add http:// to the beginning of your ip address")
+            .setPositiveButton("OK", (dialog12, which) -> {
+                SharedPreferences.Editor editor = sharedPref.edit();
+                editor.putString("ipAddress", input.getText().toString());
+                socket = IO.socket(URI.create(input.getText().toString()), options);
+                editor.apply();
+            })
+            .create();
+        dialog.setView(input, (int)(19*dpi), (int)(5*dpi), (int)(14*dpi), (int)(5*dpi) );
+        dialog.show();
+
+    }
+
 }

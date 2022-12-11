@@ -36,7 +36,12 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.4'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.0'
-    implementation 'com.neovisionaries:nv-websocket-client:2.14'
     implementation 'io.socket:socket.io-client:2.1.0'
+    implementation 'com.google.code.gson:gson:2.8.6'
 
+}
+configurations {
+    all {
+        exclude group: 'org.json', module: 'json'
+    }
 }
