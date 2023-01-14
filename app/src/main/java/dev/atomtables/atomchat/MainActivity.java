@@ -111,16 +111,20 @@ public class MainActivity extends AppCompatActivity {
             System.out.println(Arrays.toString(args));
             socket.connect();
         });
-    socket.on("new_message", (arg) -> runOnUiThread(() -> {
-                  String arg2 = arg[0].toString();
-                  String[] arg3 = arg2.split("%&##\uE096%%@");
-                  onReceiveMessage(arg3[0], arg3[1]);
-                }));
+        socket.on("new_message", (arg) -> runOnUiThread(() -> {
+            String arg2 = arg[0].toString();
+            String[] arg3 = arg2.split("%&##\uE096%%@");
+            onReceiveMessage(arg3[0], arg3[1]);
+        }));
+        socket.on("message_typing", (username) -> runOnUiThread(() -> {
+            TextView mTextView = (TextView) findViewById(R.id.typing_message);
+            String typing_message = username[0] + " is typing...";
+            System.out.println(typing_message);
+        }));
 
         new Timer().scheduleAtFixedRate(new TimerTask(){
             @Override
             public void run(){
-                socket.connect();
                 if (socket.connected()) {
                     runOnUiThread(() -> {
                         EditText send_message = findViewById(R.id.send_message);
@@ -128,6 +132,8 @@ public class MainActivity extends AppCompatActivity {
                         send_message.setHintTextColor(Color.parseColor("#757575"));
                         System.out.println("status connected is " + socket.connected());
                     });
+                } else {
+                    socket.connect();
                 }
             }
         },0,5000);
