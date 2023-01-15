@@ -62,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
             .build();
     URI ipAddress = URI.create("http://127.0.0.1");
     Socket socket = IO.socket(ipAddress, options);
+    Bundle extras = getIntent().getExtras();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
@@ -70,7 +71,12 @@ public class MainActivity extends AppCompatActivity {
             ipAddress = URI.create(sharedPref.getString("ipAddress", ""));
             socket = IO.socket(ipAddress, options);
         } else {
-            onIpAddress();
+            Intent intent=new Intent(this, LoginActivity.class);
+            startActivity(intent);
+            socket = IO.socket(URI.create(onIpAddress()), options);
+            SharedPreferences.Editor editor = sharedPref.edit();
+            editor.putString("ipAddress", onIpAddress());
+            editor.apply();
         }
 
         super.onCreate(savedInstanceState);
@@ -99,7 +105,6 @@ public class MainActivity extends AppCompatActivity {
             return false;
         });
         Button button = findViewById(R.id.send_button);
-        usernameSet("onLaunch");
         button.setOnClickListener((v) -> {
             if (socket.connected()){
                 onSendMessage();
@@ -117,7 +122,7 @@ public class MainActivity extends AppCompatActivity {
             onReceiveMessage(arg3[0], arg3[1]);
         }));
         socket.on("message_typing", (username) -> runOnUiThread(() -> {
-            TextView mTextView = (TextView) findViewById(R.id.typing_message);
+            TextView mTextView = findViewById(R.id.typing_message);
             String typing_message = username[0] + " is typing...";
             System.out.println(typing_message);
         }));
@@ -150,48 +155,19 @@ public class MainActivity extends AppCompatActivity {
         return Math.round((float) dp * density);
     }
 
-    public void usernameSet(String activity) {
-        if (Objects.equals(activity, "onLaunch")) {
-            if (Objects.equals(callUsername("", "no"), "notFound")) {
-                final EditText input = new EditText(MainActivity.this);
-
-                float dpi = MainActivity.this.getResources().getDisplayMetrics().density;
-                AlertDialog dialog = (new AlertDialog.Builder(MainActivity.this))
-                        .setTitle("Please choose a username")
-                        .setMessage("You can change this in settings")
-                        .setPositiveButton("OK", (dialog12, which) -> callUsername(input.getText().toString(), "yes"))
-                        .create();
-                dialog.setView(input, (int)(19*dpi), (int)(5*dpi), (int)(14*dpi), (int)(5*dpi) );
-                dialog.show();
-
-
-            }
-        } else if (Objects.equals(activity, "onCall")) {
-            final EditText input = new EditText(MainActivity.this);
-            float dpi = MainActivity.this.getResources().getDisplayMetrics().density;
-            AlertDialog dialog = (new AlertDialog.Builder(MainActivity.this))
-                    .setTitle("Please choose a username")
-                    .setMessage("Note this will not change your username for any prior texts!")
-                    .setPositiveButton("OK", (dialog1, which) -> callUsername(input.getText().toString(), "yes"))
-                    .create();
-            dialog.setView(input, (int)(19*dpi), (int)(5*dpi), (int)(14*dpi), (int)(5*dpi) );
-            dialog.show();
-        }
-    }
-
-    public String callUsername(String username, String edit) {
+    public String callUsername() {
         SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
-        if (Objects.equals(edit, "yes")) {
-            SharedPreferences.Editor editor = sharedPref.edit();
-            editor.putString("username", username);
-            editor.apply();
-            return "";
+        if (!sharedPref.getString("username", "notFound").equals("notFound")) {
+            return sharedPref.getString("username", "");
         } else {
-            return sharedPref.getString("username", "notFound");
+            SharedPreferences.Editor editor = sharedPref.edit();
+            editor.putString("username", extras.getString("username"));
+            editor.apply();
+            return sharedPref.getString("username", "");
         }
     }
 
-  public void onSendMessage() {
+    public void onSendMessage() {
       System.out.println("current status : " + socket.connected());
         EditText send_message = findViewById(R.id.send_message);
         String message = send_message.getText().toString();
@@ -217,7 +193,7 @@ public class MainActivity extends AppCompatActivity {
                     RelativeLayout.LayoutParams.WRAP_CONTENT
             );
             TextView username = new TextView(MainActivity.this);
-            username.setText(callUsername("", "no"));
+            username.setText(callUsername());
             username.setTextColor(Color.parseColor("#f3f3f3"));
             username.setTextSize(12);
             message_new.setId(i[0]);
@@ -237,7 +213,7 @@ public class MainActivity extends AppCompatActivity {
             relativeLayout.addView(message_new);
             relativeLayout.addView(username);
             parentLayout.addView(relativeLayout);
-            socket.emit("send_message", message, callUsername("", "no"));
+            socket.emit("send_message", message, callUsername());
             ScrollView sv = findViewById(R.id.scr1);
             sv.post(() -> sv.fullScroll(View.FOCUS_DOWN));
         } else {
@@ -258,8 +234,8 @@ public class MainActivity extends AppCompatActivity {
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.user_change:
-                usernameSet("onCall");
-                return true;
+                Intent intent=new Intent(this, LoginActivity.class);
+                startActivity(intent);
             case R.id.help:
                 Intent i = new Intent(this, HelpActivity.class);
                 startActivity(i);
@@ -326,23 +302,8 @@ public class MainActivity extends AppCompatActivity {
         send_message.setText("");
 
     }
-    public void onIpAddress() {
-        SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
-        final EditText input = new EditText(MainActivity.this);
-        float dpi = MainActivity.this.getResources().getDisplayMetrics().density;
-        AlertDialog dialog = (new AlertDialog.Builder(MainActivity.this))
-            .setTitle("What server would you like to connect to?")
-            .setMessage("You can change this in settings, you must select an ip address as this app is nonfunctional without it. If you are not a developer, I recommend you do not use the app at this stage. make sure to add http:// to the beginning of your ip address")
-            .setPositiveButton("OK", (dialog12, which) -> {
-                SharedPreferences.Editor editor = sharedPref.edit();
-                editor.putString("ipAddress", input.getText().toString());
-                socket = IO.socket(URI.create(input.getText().toString()), options);
-                editor.apply();
-            })
-            .create();
-        dialog.setView(input, (int)(19*dpi), (int)(5*dpi), (int)(14*dpi), (int)(5*dpi) );
-        dialog.show();
-
+    public String onIpAddress() {
+        return extras.getString("ipaddress");
     }
 
 }
