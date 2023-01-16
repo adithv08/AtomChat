@@ -25,4 +25,5 @@
     <string name="ip_address">IP Address</string>
     <string name="website_of_the_server">*website of the server</string>
     <string name="enter_chat">Enter Chat</string>
+    <string name="log_out">Log Out</string>
 </resources>

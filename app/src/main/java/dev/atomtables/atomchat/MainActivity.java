@@ -1,7 +1,6 @@
 package dev.atomtables.atomchat;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -25,10 +24,10 @@ import androidx.core.content.ContextCompat;
 
 import java.net.URI;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import io.socket.client.IO;
 import io.socket.client.Socket;
@@ -62,17 +61,20 @@ public class MainActivity extends AppCompatActivity {
             .build();
     URI ipAddress = URI.create("http://127.0.0.1");
     Socket socket = IO.socket(ipAddress, options);
-    Bundle extras = getIntent().getExtras();
+
+    Bundle extras;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
+        try {
+            extras = getIntent().getExtras();
+        } catch (Exception e) {
+            System.out.println("did not come from an intent");
+        }
         SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
         if (!sharedPref.getString("ipAddress", "absolutely0value").equals("absolutely0value")) {
             ipAddress = URI.create(sharedPref.getString("ipAddress", ""));
             socket = IO.socket(ipAddress, options);
         } else {
-            Intent intent=new Intent(this, LoginActivity.class);
-            startActivity(intent);
             socket = IO.socket(URI.create(onIpAddress()), options);
             SharedPreferences.Editor editor = sharedPref.edit();
             editor.putString("ipAddress", onIpAddress());

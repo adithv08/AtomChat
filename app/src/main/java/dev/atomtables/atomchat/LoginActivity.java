@@ -18,8 +18,11 @@ public class LoginActivity extends AppCompatActivity {
             Intent i = new Intent(LoginActivity.this, MainActivity.class);
             EditText usernameData = findViewById(R.id.usermane);
             EditText ipAddressData = findViewById(R.id.ip_address);
-            i.putExtra("username", usernameData.getText());
-            i.putExtra("ipaddress", ipAddressData.getText());
+            String usernameString = String.valueOf(usernameData.getText());
+            String ipaddressString = String.valueOf(ipAddressData.getText());
+            i.putExtra("username", usernameString);
+            i.putExtra("ipaddress", ipaddressString);
+            System.out.println("username is " + usernameString + " and ip address is " + ipaddressString);
             startActivity(i);
         });
     }
