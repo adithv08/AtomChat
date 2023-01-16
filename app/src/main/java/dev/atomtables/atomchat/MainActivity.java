@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import io.socket.client.IO;
 import io.socket.client.Socket;
@@ -63,23 +62,58 @@ public class MainActivity extends AppCompatActivity {
     Socket socket = IO.socket(ipAddress, options);
 
     Bundle extras;
+    SharedPreferences sharedPref;
+    String current_username;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
         try {
             extras = getIntent().getExtras();
+            if (!sharedPref.getString("ipAddress", "absolutely0value").equals("absolutely0value")) {
+                // get ip address from shared preferences
+                ipAddress = URI.create(sharedPref.getString("ipAddress", ""));
+                socket = IO.socket(ipAddress, options);
+            } else {
+                // see if intent extras contain extras.getString("ipaddress")
+                if (extras.getString("ipaddress") != null) {
+                    // intent extras contain ip address
+                    socket = IO.socket(URI.create(extras.getString("ipaddress")), options);
+                    SharedPreferences.Editor editor = sharedPref.edit();
+                    editor.putString("ipAddress", extras.getString("ipaddress"));
+                    editor.apply();
+                } else {
+                    // intent does not contain extras so force an error to move down to *catch* zone
+                    System.out.println("intent does not contain extras so force an error to move down to *catch* zone");
+                    throw new NullPointerException();
+                }
+
+            }
+            if (!sharedPref.getString("username", "absolutely0value").equals("absolutely0value")) {
+                // set username to one found in shared preferences
+                current_username = sharedPref.getString("username", "");
+            } else {
+                // get username from intent extras
+                current_username = extras.getString("username");
+                SharedPreferences.Editor editor = sharedPref.edit();
+                editor.putString("username", extras.getString("username"));
+                editor.apply();
+            }
         } catch (Exception e) {
-            System.out.println("did not come from an intent");
+            // came from launcher, will test to see if username/ip address data exists
+            System.out.println("did not come from an intent, exception thrown was " + e);
+            sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
+            if (!sharedPref.getString("ipAddress", "absolutely0value").equals("absolutely0value") && !sharedPref.getString("username", "absolutely0value").equals("absolutely0value")) {
+                // shared prefs contained username and ip data, will use that
+                ipAddress = URI.create(sharedPref.getString("ipAddress", ""));
+                socket = IO.socket(ipAddress, options);
+                current_username = sharedPref.getString("username", "");
+            } else {
+                // no username/ip address data has been found, redirecting the user to the login page
+                Intent i = new Intent(this, LoginActivity.class);
+                startActivity(i);
+            }
         }
-        SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
-        if (!sharedPref.getString("ipAddress", "absolutely0value").equals("absolutely0value")) {
-            ipAddress = URI.create(sharedPref.getString("ipAddress", ""));
-            socket = IO.socket(ipAddress, options);
-        } else {
-            socket = IO.socket(URI.create(onIpAddress()), options);
-            SharedPreferences.Editor editor = sharedPref.edit();
-            editor.putString("ipAddress", onIpAddress());
-            editor.apply();
-        }
+
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -157,18 +191,6 @@ public class MainActivity extends AppCompatActivity {
         return Math.round((float) dp * density);
     }
 
-    public String callUsername() {
-        SharedPreferences sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
-        if (!sharedPref.getString("username", "notFound").equals("notFound")) {
-            return sharedPref.getString("username", "");
-        } else {
-            SharedPreferences.Editor editor = sharedPref.edit();
-            editor.putString("username", extras.getString("username"));
-            editor.apply();
-            return sharedPref.getString("username", "");
-        }
-    }
-
     public void onSendMessage() {
       System.out.println("current status : " + socket.connected());
         EditText send_message = findViewById(R.id.send_message);
@@ -195,7 +217,7 @@ public class MainActivity extends AppCompatActivity {
                     RelativeLayout.LayoutParams.WRAP_CONTENT
             );
             TextView username = new TextView(MainActivity.this);
-            username.setText(callUsername());
+            username.setText(current_username);
             username.setTextColor(Color.parseColor("#f3f3f3"));
             username.setTextSize(12);
             message_new.setId(i[0]);
@@ -215,7 +237,7 @@ public class MainActivity extends AppCompatActivity {
             relativeLayout.addView(message_new);
             relativeLayout.addView(username);
             parentLayout.addView(relativeLayout);
-            socket.emit("send_message", message, callUsername());
+            socket.emit("send_message", message, current_username);
             ScrollView sv = findViewById(R.id.scr1);
             sv.post(() -> sv.fullScroll(View.FOCUS_DOWN));
         } else {
@@ -303,9 +325,6 @@ public class MainActivity extends AppCompatActivity {
         send_message.setHintTextColor(Color.parseColor("#eb4034"));
         send_message.setText("");
 
-    }
-    public String onIpAddress() {
-        return extras.getString("ipaddress");
     }
 
 }
