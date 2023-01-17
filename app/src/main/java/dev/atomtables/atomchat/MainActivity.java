@@ -66,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
     String current_username;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // get username and ip address from shared settings
         sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
         try {
             extras = getIntent().getExtras();
@@ -122,6 +123,24 @@ public class MainActivity extends AppCompatActivity {
         socket.connect();
         System.out.println("status connected is " + socket.connected());
         EditText send_message = findViewById(R.id.send_message);
+        final boolean[] typingState = {false};
+        new Timer().scheduleAtFixedRate(new TimerTask(){
+            @Override
+            public void run(){
+                runOnUiThread(() -> {
+                    if (!send_message.getText().toString().equals("")) {
+                        socket.emit("message_typing", current_username);
+                        typingState[0] = true;
+                    } else {
+                        if (typingState[0]) {
+                            socket.emit("no_message_typing", current_username);
+                            typingState[0] = false;
+                        }
+                    }
+                });
+            }
+        },0,5000);
+
         send_message.setOnEditorActionListener((v, actionId, event) -> {
             if (ki.get() == 0) {
                 if ((event != null && (event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) || (actionId == EditorInfo.IME_ACTION_DONE)) {
@@ -130,7 +149,6 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         onConnectionIssue();
                     }
-
                     ki.getAndIncrement();
                     setTimeout(ki::getAndDecrement, 250);
                     return true;
@@ -148,18 +166,27 @@ public class MainActivity extends AppCompatActivity {
                 onConnectionIssue();
             }
         });
+        // on error, try to reconnect
         socket.on(Socket.EVENT_CONNECT_ERROR, args -> {
             System.out.println(Arrays.toString(args));
             socket.connect();
         });
+        // on new message, append to MainActivity
         socket.on("new_message", (arg) -> runOnUiThread(() -> {
             String arg2 = arg[0].toString();
             String[] arg3 = arg2.split("%&##\uE096%%@");
             onReceiveMessage(arg3[0], arg3[1]);
         }));
+        // on typing message, add person to typing list
         socket.on("message_typing", (username) -> runOnUiThread(() -> {
             TextView mTextView = findViewById(R.id.typing_message);
             String typing_message = username[0] + " is typing...";
+            System.out.println(typing_message);
+        }));
+        // on no typing message, remove person from typing list
+        socket.on("no_message_typing", (username) -> runOnUiThread(() -> {
+            TextView mTextView = findViewById(R.id.typing_message);
+            String typing_message = username[0] + " is no longer typing...";
             System.out.println(typing_message);
         }));
 
