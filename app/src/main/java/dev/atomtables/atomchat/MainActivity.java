@@ -34,7 +34,6 @@ import io.socket.engineio.client.transports.Polling;
 import io.socket.engineio.client.transports.WebSocket;
 
 
-
 public class MainActivity extends AppCompatActivity {
     IO.Options options = IO.Options.builder()
             // IO factory options
@@ -42,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
             .setMultiplex(true)
 
             // low-level engine options
-            .setTransports(new String[] { Polling.NAME, WebSocket.NAME })
+            .setTransports(new String[]{Polling.NAME, WebSocket.NAME})
             .setUpgrade(true)
             .setRememberUpgrade(false)
             .setPath("/socket.io/")
@@ -64,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
     Bundle extras;
     SharedPreferences sharedPref;
     String current_username;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         // get username and ip address from shared settings
@@ -124,9 +124,9 @@ public class MainActivity extends AppCompatActivity {
         System.out.println("status connected is " + socket.connected());
         EditText send_message = findViewById(R.id.send_message);
         final boolean[] typingState = {false};
-        new Timer().scheduleAtFixedRate(new TimerTask(){
+        new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
-            public void run(){
+            public void run() {
                 runOnUiThread(() -> {
                     if (!send_message.getText().toString().equals("")) {
                         socket.emit("message_typing", current_username);
@@ -139,12 +139,12 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
             }
-        },0,5000);
-
+        }, 0, 2500);
+        // see if ime activates send action
         send_message.setOnEditorActionListener((v, actionId, event) -> {
             if (ki.get() == 0) {
                 if ((event != null && (event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) || (actionId == EditorInfo.IME_ACTION_DONE)) {
-                    if (socket.connected()){
+                    if (socket.connected()) {
                         onSendMessage();
                     } else {
                         onConnectionIssue();
@@ -159,8 +159,9 @@ public class MainActivity extends AppCompatActivity {
             return false;
         });
         Button button = findViewById(R.id.send_button);
+        // see if button activates send action
         button.setOnClickListener((v) -> {
-            if (socket.connected()){
+            if (socket.connected()) {
                 onSendMessage();
             } else {
                 onConnectionIssue();
@@ -177,10 +178,28 @@ public class MainActivity extends AppCompatActivity {
             String[] arg3 = arg2.split("%&##\uE096%%@");
             onReceiveMessage(arg3[0], arg3[1]);
         }));
+        // initializing typing list:
+        String[] people_typing = {"", "", "", ""};
+        final int[] index = {0};
         // on typing message, add person to typing list
         socket.on("message_typing", (username) -> runOnUiThread(() -> {
+            // init typing_message element
             TextView mTextView = findViewById(R.id.typing_message);
+            // if someone has started typing add them to the array
             String typing_message = username[0] + " is typing...";
+            while (index[0] < people_typing.length) {
+                // if index is empty go to the empty index and store data
+                if (people_typing[index[0]] == null || people_typing[index[0]].isEmpty()) {
+                    people_typing[index[0]] = (String) username[0];
+                    break;
+                }
+                // append
+                index[0]++;
+            }
+            // to prevent overflow this exists
+            if (index[0] == people_typing.length) {
+                System.out.println("many people are typing");
+            }
             System.out.println(typing_message);
         }));
         // on no typing message, remove person from typing list
@@ -190,9 +209,9 @@ public class MainActivity extends AppCompatActivity {
             System.out.println(typing_message);
         }));
 
-        new Timer().scheduleAtFixedRate(new TimerTask(){
+        new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
-            public void run(){
+            public void run() {
                 if (socket.connected()) {
                     runOnUiThread(() -> {
                         EditText send_message = findViewById(R.id.send_message);
@@ -204,10 +223,11 @@ public class MainActivity extends AppCompatActivity {
                     socket.connect();
                 }
             }
-        },0,5000);
+        }, 0, 5000);
 
 
     }
+
     final int[] i = {1};
 
     public int dpToPx(int dp, Context context) {
@@ -219,7 +239,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onSendMessage() {
-      System.out.println("current status : " + socket.connected());
+        System.out.println("current status : " + socket.connected());
         EditText send_message = findViewById(R.id.send_message);
         String message = send_message.getText().toString();
         send_message.requestFocus();
@@ -273,19 +293,21 @@ public class MainActivity extends AppCompatActivity {
         }
 
     }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu_main, menu);
         return true;
     }
+
     @SuppressLint("NonConstantResourceId")
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.user_change:
-                Intent intent=new Intent(this, LoginActivity.class);
+                Intent intent = new Intent(this, LoginActivity.class);
                 startActivity(intent);
             case R.id.help:
                 Intent i = new Intent(this, HelpActivity.class);
@@ -294,6 +316,7 @@ public class MainActivity extends AppCompatActivity {
                 return super.onOptionsItemSelected(item);
         }
     }
+
     public void onReceiveMessage(String message, String user) {
 
         RelativeLayout relativeLayout = new RelativeLayout(MainActivity.this);
@@ -335,17 +358,18 @@ public class MainActivity extends AppCompatActivity {
         ScrollView sv = findViewById(R.id.scr1);
         sv.post(() -> sv.fullScroll(View.FOCUS_DOWN));
     }
-    public static void setTimeout(Runnable runnable, int delay){
+
+    public static void setTimeout(Runnable runnable, int delay) {
         new Thread(() -> {
             try {
                 Thread.sleep(delay);
                 runnable.run();
-            }
-            catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }).start();
     }
+
     public void onConnectionIssue() {
         EditText send_message = findViewById(R.id.send_message);
         send_message.setHint("Connection Issue");
