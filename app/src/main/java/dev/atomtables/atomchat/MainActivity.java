@@ -179,27 +179,14 @@ public class MainActivity extends AppCompatActivity {
             onReceiveMessage(arg3[0], arg3[1]);
         }));
         // initializing typing list:
-        String[] people_typing = {"", "", "", ""};
-        final int[] index = {0};
+        String[] people_typing = new String[4];
+        final int[] amt_people_typing = {0};
         // on typing message, add person to typing list
         socket.on("message_typing", (username) -> runOnUiThread(() -> {
             // init typing_message element
             TextView mTextView = findViewById(R.id.typing_message);
             // if someone has started typing add them to the array
             String typing_message = username[0] + " is typing...";
-            while (index[0] < people_typing.length) {
-                // if index is empty go to the empty index and store data
-                if (people_typing[index[0]] == null || people_typing[index[0]].isEmpty()) {
-                    people_typing[index[0]] = (String) username[0];
-                    break;
-                }
-                // append
-                index[0]++;
-            }
-            // to prevent overflow this exists
-            if (index[0] == people_typing.length) {
-                System.out.println("many people are typing");
-            }
             System.out.println(typing_message);
         }));
         // on no typing message, remove person from typing list
