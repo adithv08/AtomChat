@@ -26,6 +26,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.socket.client.IO;
@@ -70,11 +71,13 @@ public class MainActivity extends AppCompatActivity {
         sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
         try {
             extras = getIntent().getExtras();
+            // if ip address is not empty, get it from shared preferences
             if (!sharedPref.getString("ipAddress", "absolutely0value").equals("absolutely0value")) {
                 // get ip address from shared preferences
                 ipAddress = URI.create(sharedPref.getString("ipAddress", ""));
                 socket = IO.socket(ipAddress, options);
-            } else {
+            }
+            else {
                 // see if intent extras contain extras.getString("ipaddress")
                 if (extras.getString("ipaddress") != null) {
                     // intent extras contain ip address
@@ -92,14 +95,23 @@ public class MainActivity extends AppCompatActivity {
             if (!sharedPref.getString("username", "absolutely0value").equals("absolutely0value")) {
                 // set username to one found in shared preferences
                 current_username = sharedPref.getString("username", "");
-            } else {
-                // get username from intent extras
-                current_username = extras.getString("username");
-                SharedPreferences.Editor editor = sharedPref.edit();
-                editor.putString("username", extras.getString("username"));
-                editor.apply();
             }
-        } catch (Exception e) {
+            else {
+                // get username from intent extras
+                if (extras.getString("username") != null) {
+                    // intent extras contain username
+                    current_username = extras.getString("username");
+                    SharedPreferences.Editor editor = sharedPref.edit();
+                    editor.putString("username", extras.getString("username"));
+                    editor.apply();
+                } else {
+                    // intent does not contain extras so force an error to move down to *catch* zone
+                    System.out.println("intent does not contain extras so force an error to move down to *catch* zone");
+                    throw new NullPointerException();
+                }
+            }
+        }
+        catch (Exception e) {
             // came from launcher, will test to see if username/ip address data exists
             System.out.println("did not come from an intent, exception thrown was " + e);
             sharedPref = MainActivity.this.getPreferences(Context.MODE_PRIVATE);
@@ -118,19 +130,22 @@ public class MainActivity extends AppCompatActivity {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        AtomicInteger ki = new AtomicInteger();
-        ki.set(0);
+
         socket.connect();
         System.out.println("status connected is " + socket.connected());
         EditText send_message = findViewById(R.id.send_message);
+
         final boolean[] typingState = {false};
+        // see if user is typing
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 runOnUiThread(() -> {
                     if (!send_message.getText().toString().equals("")) {
-                        socket.emit("message_typing", current_username);
-                        typingState[0] = true;
+                        if (!typingState[0]) {
+                            socket.emit("message_typing", current_username);
+                            typingState[0] = true;
+                        }
                     } else {
                         if (typingState[0]) {
                             socket.emit("no_message_typing", current_username);
@@ -140,7 +155,9 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         }, 0, 2500);
-        // see if ime activates send action
+        // see if ime/enter activates send action
+        AtomicInteger ki = new AtomicInteger();
+        ki.set(0);
         send_message.setOnEditorActionListener((v, actionId, event) -> {
             if (ki.get() == 0) {
                 if ((event != null && (event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) || (actionId == EditorInfo.IME_ACTION_DONE)) {
@@ -172,30 +189,96 @@ public class MainActivity extends AppCompatActivity {
             System.out.println(Arrays.toString(args));
             socket.connect();
         });
+        // initializing typing list:
+        ConcurrentHashMap<String, String> typingUsers = new ConcurrentHashMap<>();
+        // on typing message, add person to typing list
+        socket.on("message_typing_client", (username) -> runOnUiThread(() -> {
+            // if someone has started typing add them to the array
+            String typing_message = username[0] + " is typing...";
+            typingUsers.put((String) username[0], (String) username[0]);
+            String currentTypingPeople;
+            StringBuilder listPeople = new StringBuilder();
+            // init typing_message element
+            TextView mTextView = findViewById(R.id.typing_message);
+            if (typingUsers.size() == 1) {
+                for (String u : typingUsers.values()) {
+                    listPeople.append(u);
+                }
+                currentTypingPeople = listPeople + " is typing...";
+            } else if (typingUsers.size() == 0) {
+                currentTypingPeople = "";
+            } else {
+                if (typingUsers.size() >= 5) {
+                    currentTypingPeople = "Lots of people are typing...";
+                } else {
+                    for (String u : typingUsers.values()) {
+                        listPeople.append(u).append(", ");
+                    }
+                    currentTypingPeople = listPeople + " are typing...";
+                }
+            }
+            mTextView.setText(currentTypingPeople);
+            System.out.println(currentTypingPeople);
+        }));
+        // on no typing message, remove person from typing list
+        socket.on("no_message_typing_client", (username) -> runOnUiThread(() -> {
+            TextView mTextView = findViewById(R.id.typing_message);
+            String typing_message = username[0] + " is no longer typing...";
+            typingUsers.remove((String) username[0]);
+            String currentTypingPeople;
+            StringBuilder listPeople = new StringBuilder();
+            if (typingUsers.size() == 1) {
+                for (String u : typingUsers.values()) {
+                    listPeople.append(u);
+                }
+                currentTypingPeople = listPeople + " is typing...";
+            } else if (typingUsers.size() == 0) {
+                currentTypingPeople = "";
+            } else {
+                if (typingUsers.size() >= 5) {
+                    currentTypingPeople = "Lots of people are typing...";
+                } else {
+                    for (String u : typingUsers.values()) {
+                        listPeople.append(u).append(", ");
+                    }
+                    currentTypingPeople = listPeople + " are typing...";
+                }
+            }
+            mTextView.setText(currentTypingPeople);
+            System.out.println(currentTypingPeople);
+        }));
         // on new message, append to MainActivity
         socket.on("new_message", (arg) -> runOnUiThread(() -> {
             String arg2 = arg[0].toString();
             String[] arg3 = arg2.split("%&##\uE096%%@");
             onReceiveMessage(arg3[0], arg3[1]);
-        }));
-        // initializing typing list:
-        String[] people_typing = new String[4];
-        final int[] amt_people_typing = {0};
-        // on typing message, add person to typing list
-        socket.on("message_typing", (username) -> runOnUiThread(() -> {
+            typingUsers.remove(arg3[1]);
+            String currentTypingPeople;
+            StringBuilder listPeople = new StringBuilder();
             // init typing_message element
             TextView mTextView = findViewById(R.id.typing_message);
-            // if someone has started typing add them to the array
-            String typing_message = username[0] + " is typing...";
-            System.out.println(typing_message);
-        }));
-        // on no typing message, remove person from typing list
-        socket.on("no_message_typing", (username) -> runOnUiThread(() -> {
-            TextView mTextView = findViewById(R.id.typing_message);
-            String typing_message = username[0] + " is no longer typing...";
-            System.out.println(typing_message);
+            if (typingUsers.size() == 1) {
+                for (String u : typingUsers.values()) {
+                    listPeople.append(u);
+                }
+                currentTypingPeople = listPeople + " is typing";
+            } else if (typingUsers.size() == 0) {
+                currentTypingPeople = "";
+            } else {
+                if (typingUsers.size() >= 5) {
+                    currentTypingPeople = "Lots of people are typing...";
+                } else {
+                    for (String u : typingUsers.values()) {
+                        listPeople.append(u).append(", ");
+                    }
+                    currentTypingPeople = listPeople + " are typing";
+                }
+            }
+            mTextView.setText(currentTypingPeople);
+            System.out.println(currentTypingPeople);
         }));
 
+        // when a connection is remade, allow client-side sending of messages
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
@@ -281,31 +364,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @SuppressLint("NonConstantResourceId")
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle item selection
-        switch (item.getItemId()) {
-            case R.id.user_change:
-                Intent intent = new Intent(this, LoginActivity.class);
-                startActivity(intent);
-            case R.id.help:
-                Intent i = new Intent(this, HelpActivity.class);
-                startActivity(i);
-            default:
-                return super.onOptionsItemSelected(item);
-        }
-    }
-
     public void onReceiveMessage(String message, String user) {
-
         RelativeLayout relativeLayout = new RelativeLayout(MainActivity.this);
         LinearLayout parentLayout = findViewById(R.id.parentLayout);
         RelativeLayout.LayoutParams rlp = new RelativeLayout.LayoutParams(
@@ -363,6 +422,30 @@ public class MainActivity extends AppCompatActivity {
         send_message.setHintTextColor(Color.parseColor("#eb4034"));
         send_message.setText("");
 
+    }
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @SuppressLint("NonConstantResourceId")
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.user_change:
+                Intent intent = new Intent(this, LoginActivity.class);
+                startActivity(intent);
+                return true;
+            case R.id.help:
+                Intent i = new Intent(this, HelpActivity.class);
+                startActivity(i);
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
 }
